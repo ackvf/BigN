@@ -1,10 +1,10 @@
-import { N } from './bign'
+import N from './bign'
 
 // Make BigInt serializable with `JSON.stringify()`
 (BigInt.prototype as any).toJSON = function () { return this.toString() }
 
 expect.extend({
-  toExactlyMatchN(a: N, b: N) {
+  N_toExactlyMatch(a: N, b: N) {
     let pass = true
 
     /* TODO: Maybe refine this later. What exactly should match for two bigints to be equal? Only their Integer part or also decimal precision? */
@@ -31,7 +31,7 @@ expect.extend({
 declare global {
   namespace jest { // eslint-disable-line @typescript-eslint/no-namespace
     interface Matchers<R> {
-      toExactlyMatchN(b: N): R
+      N_toExactlyMatch(b: N): R
     }
   }
 }
@@ -53,29 +53,29 @@ describe('N: BigInt tests', () => {
 
     test(`new N(number)`, () => {
       const result = new N(10000, 2)
-      expect(result).toExactlyMatchN(control)
+      expect(result).N_toExactlyMatch(control)
     })
 
     test(`new N(bigint)`, () => {
       const result = new N(10000n, 2)
-      expect(result).toExactlyMatchN(control)
+      expect(result).N_toExactlyMatch(control)
     })
 
     test(`new N(string)`, () => {
       const result = new N('10000', 2)
-      expect(result).toExactlyMatchN(control)
+      expect(result).N_toExactlyMatch(control)
     })
 
     test(`new N(decimal string)`, () => {
       const result = new N('100.00')
-      expect(result).toExactlyMatchN(control)
+      expect(result).N_toExactlyMatch(control)
     })
 
     test(`new N(N)`, () => {
       const a = new N(100n)
 
       const result = new N(a)
-      expect(result).toExactlyMatchN(control)
+      expect(result).N_toExactlyMatch(control)
     })
 
     test(`new N({ isPrecise: true })`, () => {
@@ -90,8 +90,10 @@ describe('N: BigInt tests', () => {
     test(`N.clone()`, () => {
       const a = new N(100n)
 
-      const result = new N(a)
-      expect(result).toExactlyMatchN(control)
+      const result = a.clone()
+
+      expect(result).N_toExactlyMatch(control)
+      expect(result !== control).toBeTruthy()
     })
 
   })
@@ -141,7 +143,7 @@ describe('N: BigInt tests', () => {
 
   describe('Arithmetics', () => {
 
-    test(`N.plus()  : A+B=C`, () => {
+    test(`N.plus(N)  : A+B=C`, () => {
       const expected = C().toPrecise()
 
       const a = A()
@@ -151,7 +153,7 @@ describe('N: BigInt tests', () => {
       expect(result).toBe(expected)
     })
 
-    test(`N.minus() : C-B=A`, () => {
+    test(`N.minus(N) : C-B=A`, () => {
       const expected = A().toPrecise()
 
       const a = C()
@@ -161,7 +163,7 @@ describe('N: BigInt tests', () => {
       expect(result).toBe(expected)
     })
 
-    test(`N.mul()   : D×E=A`, () => {
+    test(`N.mul(N)   : D×E=A`, () => {
       const expected = A().toPrecise()
 
       const a = D()
@@ -171,7 +173,7 @@ describe('N: BigInt tests', () => {
       expect(result).toBe(expected)
     })
 
-    test(`N.div()   : A÷E=D`, () => {
+    test(`N.div(N)   : A÷E=D`, () => {
       const expected = D().toPrecise()
 
       const a = A()
@@ -179,6 +181,88 @@ describe('N: BigInt tests', () => {
       const result = a.div(b).toPrecise()
 
       expect(result).toBe(expected)
+    })
+
+    test(`N.sqrt()   : √A`, () => {
+      const a = A()
+
+      const result = Number(a.sqrt())
+      const expected = Math.sqrt(Number(a.valueOf()))
+
+      expect(result).toBe(expected)
+    })
+
+  })
+
+  /* Comparisons */
+
+  describe('Comparisons : B < A < C', () => {
+
+    describe('Truthy', () => {
+
+      test(`N.eq(N) : A == A`, () => {
+        const compared = A()
+        const comparand = A()
+        expect(compared.eq(comparand)).toBeTruthy()
+      })
+
+      test(`N.lt(N) : A < C`, () => {
+        const compared = A()
+        const comparand = C()
+        expect(compared.lt(comparand)).toBeTruthy()
+      })
+
+      test(`N.lte(N) : A <= C`, () => {
+        const compared = A()
+        const comparand = C()
+        expect(compared.lte(comparand)).toBeTruthy()
+      })
+
+      test(`N.gt(N) : A > B`, () => {
+        const compared = A()
+        const comparand = B()
+        expect(compared.gt(comparand)).toBeTruthy()
+      })
+
+      test(`N.gte(N) : A >= B`, () => {
+        const compared = A()
+        const comparand = B()
+        expect(compared.gte(comparand)).toBeTruthy()
+      })
+    })
+
+    describe('Falsy', () => {
+
+      test(`N.eq(N) ! A == C`, () => {
+        const compared = A()
+        const comparand = C()
+        expect(compared.eq(comparand)).toBeFalsy()
+      })
+
+      test(`N.lt(N) ! A < B`, () => {
+        const compared = A()
+        const comparand = B()
+        expect(compared.lt(comparand)).toBeFalsy()
+      })
+
+      test(`N.lte(N) ! A <= B`, () => {
+        const compared = A()
+        const comparand = B()
+        expect(compared.lte(comparand)).toBeFalsy()
+      })
+
+      test(`N.gt(N) ! A > C`, () => {
+        const compared = A()
+        const comparand = C()
+        expect(compared.gt(comparand)).toBeFalsy()
+      })
+
+      test(`N.gte(N) ! A >= C`, () => {
+        const compared = A()
+        const comparand = C()
+        expect(compared.gte(comparand)).toBeFalsy()
+      })
+
     })
 
   })
