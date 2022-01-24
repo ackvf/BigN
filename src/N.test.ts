@@ -76,6 +76,7 @@ describe('N: BigInt tests', () => {
 
       const result = new N(a)
       expect(result).N_toExactlyMatch(control)
+      expect(result !== control).toBeTruthy()
     })
 
     test(`new N({ isPrecise: true })`, () => {
@@ -91,7 +92,6 @@ describe('N: BigInt tests', () => {
       const a = new N(100n)
 
       const result = a.clone()
-
       expect(result).N_toExactlyMatch(control)
       expect(result !== control).toBeTruthy()
     })
