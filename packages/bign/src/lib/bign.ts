@@ -1,4 +1,9 @@
+import { assert } from 'console'
+
 type NLike = string | number | bigint | N
+
+type AnyObject = Record<string, unknown>
+
 
 export default class N {
 
@@ -20,24 +25,37 @@ export default class N {
 
   /** The original token's decimals. Only used during wrapping and unwrapping. */
   public readonly decimals!: number
-  /** Decimals as multipliert: 10^decimals. */
+  /** Decimals as multiplier: 10^decimals. */
   public readonly decimalsFactor!: bigint
 
   /** Internal value is original value rebased on higher precision. */
   public value!: bigint
   /** Internal decimal precision. */
   public precision: number = N.DEFAULT_PRECISION
-  /** Decimal precision as multiplier: 10^precision. */
+  /** Internal decimal precision as multiplier: 10^precision. */
   public factor!: bigint
 
   constructor(value: N)
+  /**
+   * @argument options.isPrecise is useful when you want to construct new N() with values from another BigInt implementation.
+   * It stores the `value` directly into the new object without rebasing to new precision.
+   * E.g. `12345600` from above example is a **precise** value of a number `123.456` rebased with precision = 5.
+   */
   constructor(value: bigint, decimals: number, precision: number, options: { isPrecise: true })
+  constructor(value: string, decimals?: undefined, precision?: number, options?: AnyObject)
   constructor(value?: string | number | bigint, decimals?: number, precision?: number, options?: { isPrecise?: boolean })
+  /**
+   * @param decimals How many numbers of the specified `value` are decimal places.
+   * @param precision Calculations are performed to *this* amount of decimal places. The rest is truncated.
+   * @param options.isPrecise
+   * @returns
+   */
   constructor(value: NLike = 0, decimals = 0, precision: number = N.DEFAULT_PRECISION, options?: { isPrecise?: boolean }) {
 
+    assert(precision >= decimals, 'Precision cannot be smaller than decimals.')
+
     if (value instanceof N) {
-      Object.assign(this, value)
-      return
+      return Object.assign(this, value)
     }
 
     if (typeof value === 'string' && value.includes('.')) {
@@ -48,33 +66,43 @@ export default class N {
     this.decimals = decimals
     this.decimalsFactor = 10n ** BigInt(decimals)
 
-    this.precision = precision < decimals ? decimals : precision
+    this.precision = precision
     this.factor = 10n ** BigInt(precision)
 
     if (options?.isPrecise === true) {
       this.value = BigInt(value)
     } else {
+
       this.value = BigInt(value) * this.factor / this.decimalsFactor
     }
+
+  }
+
+  clone() {
+    return new N(this)
   }
 
   /** Returns the truncated BigInt value. */
   valueOf(): bigint { return this.value / this.factor }
 
   /** Returns the BigInt value including original decimals. */
-  toDecimal(): bigint { return this.value * this.decimalsFactor / this.factor }
+  toDecimal(): bigint
+  /** Returns the BigInt value including specified number of decimals. */
+  toDecimal(decimals: number): bigint
+
+  toDecimal(decimals: number = this.decimals): bigint {
+    return this.value * (10n ** BigInt(decimals)) / this.factor
+  }
 
   /** Returns the internal BigInt value using internal precision. */
   toPrecise(): bigint { return this.value }
 
-  /** Returns the original decimal BigInt value as string. */
+  /** Returns the value as a decimal string. */
   toString(): string {
-    const precise = this.toDecimal()
-    return precise.toString().slice(0, -this.decimals) + '.' + precise.toString().slice(-this.decimals)
-  }
-
-  clone() {
-    return new N(this)
+    const decimal = this.toDecimal().toString().padStart(this.decimals, '0')
+    return this.decimals
+      ? decimal.slice(0, -this.decimals) + '.' + decimal.slice(-this.decimals)
+      : decimal
   }
 
   /* Arithmetics */
@@ -103,6 +131,7 @@ export default class N {
     return Multiplier
   }
 
+  /** Alias for `mul(N)`. Used by BigNumber.js. */
   multipliedBy(Factor: NLike): N { return this.mul(Factor) }
 
   div(Divisor: NLike): N {
