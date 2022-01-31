@@ -1,13 +1,11 @@
 import N from './bign'
 
-// Make BigInt serializable with `JSON.stringify()`
-(BigInt.prototype as any).toJSON = function () { return this.toString() }
 
 expect.extend({
   N_toExactlyMatch(a: N, b: N) {
     let pass = true
 
-    /* TODO: Maybe refine this later. What exactly should match for two bigints to be equal? Only their Integer part or also decimal precision? */
+    // TODO it is little more complex to asses that two arbitrary precision numbers have same value
     if (a.value !== b.value) pass = false
     if (a.precision !== b.precision) pass = false
     if (a.factor !== b.factor) pass = false
@@ -108,16 +106,36 @@ describe('N: BigInt tests', () => {
       const result = a.valueOf()
       const expected = 100n
 
-      expect(result === expected).toBeTruthy()
+      expect(result.toString()).toBe(expected.toString())
     })
 
     test(`N.toDecimal()`, () => {
+      const c = C()
+
+      const result = c.toDecimal()
+      const expected = 123450n
+
+      expect(result.toString()).toBe(expected.toString())
+    })
+
+    test(`N.toDecimal(number) : number > N.precision`, () => {
       const a = A()
+      const newDecimals = 90
 
-      const result = a.toDecimal()
-      const expected = 10000n
+      const result = a.toDecimal(newDecimals)
+      const expected = 100n * 10n ** BigInt(newDecimals)
 
-      expect(result === expected).toBeTruthy()
+      expect(result.toString()).toBe(expected.toString())
+    })
+
+    test(`N.toDecimal(number) : number < N.precision`, () => {
+      const a = A()
+      const newDecimals = 70
+
+      const result = a.toDecimal(newDecimals)
+      const expected = 100n * 10n ** BigInt(newDecimals)
+
+      expect(result.toString()).toBe(expected.toString())
     })
 
     test(`N.toPrecise()`, () => {
@@ -126,17 +144,126 @@ describe('N: BigInt tests', () => {
       const result = a.toPrecise()
       const expected = 100n * 10n ** BigInt(N.DEFAULT_PRECISION)
 
-      expect(result === expected).toBeTruthy()
+      expect(result.toString()).toBe(expected.toString())
     })
 
-    test(`N.toString()`, () => {
-      const a = A()
+    describe('N.toString()', () => {
+      /**
+       * The following toString tests simultaneously test `toString()` `toDecimal()` and ***rounding***
+       */
+      const x = new N(123456789098765n, 5)
 
-      const result = a.toString()
-      const expected = '100.00'
+    test(`N.toString()`, () => {
+        const result = x.toString()
+        const expected = '1234567890.98765'
+
+        expect(result).toBe(expected)
+      })
+
+      test(`N.toString(number) : number = N.decimals`, () => {
+        const result = x.toString(5)
+        const expected = '1234567890.98765'
+
+        expect(result).toBe(expected)
+      })
+
+      test(`N.toString(number) : number > N.decimals`, () => {
+        const result = x.toString(8)
+        const expected = '1234567890.98765000'
+
+        expect(result).toBe(expected)
+      })
+
+      test(`N.toString(number) : number < N.decimals`, () => {
+        const result = x.toString(3)
+        const expected = '1234567890.988'
+
+        expect(result).toBe(expected)
+      })
+
+      test(`N.toString(number) : number = 0`, () => {
+        const result = x.toString(0)
+        const expected = '1234567891'
+
+        expect(result).toBe(expected)
+      })
+
+      test(`N.toString(number) : number < 0`, () => {
+        const result = x.toString(-3)
+        const expected = '1234568000'
 
       expect(result).toBe(expected)
     })
+
+    })
+
+  })
+
+  /* Rounding */
+
+  describe('Rounding', () => {
+
+    afterAll(() => {
+      // Set back the default rounding method
+      N.ROUNDING_MODE = N.ROUNDING.HALF_AWAY_FROM_ZERO
+    })
+
+    describe('N.ROUNDING.HALF_AWAY_FROM_ZERO', () => {
+
+      beforeAll(() => {
+        N.ROUNDING_MODE = N.ROUNDING.HALF_AWAY_FROM_ZERO
+      })
+
+      test(`N.valueOf() : 4 rounds down`, () => {
+        const c = C()
+
+        const result = c.valueOf()
+        const expected = 123n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`N.valueOf() : 5 rounds up`, () => {
+        const n = new N('1234.5')
+
+        const result = n.valueOf()
+        const expected = 1235n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`N.valueOf() : -4 rounds up`, () => {
+        const n = new N('-123.45')
+
+        const result = n.valueOf()
+        const expected = -123n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`N.valueOf() : -5 rounds down`, () => {
+        const n = new N('-1234.5')
+
+        const result = n.valueOf()
+        const expected = -1235n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`rounding is symmetric : - new N(n).toDecimal() == new N(-n).toDecimal()`, () => {
+        const m = new N('123.45')
+        const n = new N('-123.45')
+
+        const mr = (-m.toDecimal(1)).toString()
+        const nr = n.toDecimal(1).toString()
+        const expected = '-1235'
+
+        expect(mr).toBe(expected)
+        expect(mr).toBe(nr)
+      })
+
+    })
+
   })
 
   /* Arithmetics */
@@ -187,7 +314,7 @@ describe('N: BigInt tests', () => {
       const a = A()
 
       const result = Number(a.sqrt())
-      const expected = Math.sqrt(Number(a.valueOf()))
+      const expected = Math.sqrt(Number(a))
 
       expect(result).toBe(expected)
     })

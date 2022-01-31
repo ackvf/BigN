@@ -2,25 +2,54 @@ import { assert } from 'console'
 
 type NLike = string | number | bigint | N
 
-type AnyObject = Record<string, unknown>
-
+/**
+ * @author Qwerty (Vítězslav Ackermann Ferko) <qwerty@qwerty.xyz>
+ *
+ * @description This library is intended to work as a replacement for other
+ * BigInt-like libraries, such as BigNumber, by implementing all the necessary methods.
+ * Simply replace the imports and it should work(tm).
+ *
+ * @example
+ * // import BigNumber from "bignumber.js"  // <- before
+ * import BigNumber from "BigN.ts"          // <- after
+ */
 
 export default class N {
 
-  /** The number of decimal places for internal calculations. */
+  static readonly ROUNDING = {
+    // TODO: Not yet implemented
+    // 'DOWN': 0,
+    // 'UP': 1,
+    // 'TOWARD_ZERO': 2,
+    // 'AWAY_FROM_ZERO': 3,
+    // 'HALF_DOWN': 4,
+    // 'HALF_UP': 5,
+    // 'HALF_TOWARD_ZERO': 6,
+    'HALF_AWAY_FROM_ZERO': 7,
+    // 'HALF_TO_EVEN': 8,
+    // 'HALF_TO_ODD': 9,
+  } as const
+
+  // GLOBAL SETTINGS ---------------------------------------------------------------------------------------------------
+
+  /** The number of decimal places for internal calculations. Changing this value does not affect existing instances as it is used only in constructor. */
   static DEFAULT_PRECISION = 80
+
+  /** Changing this value affects all instances. */
+  static ROUNDING_MODE = N.ROUNDING.HALF_AWAY_FROM_ZERO
+
+  // -------------------------------------------------------------------------------------------------------------------
 
   /**
    * Given float value 123.456 and DEFAULT_PRECISION = 5,
    * we get 123456 with 3 decimals, which is then internally stored as:
    *
-   *
    * decimals = 3
-   * decimalsFactor = 1000
+   * decimalsFactor = 1000n
    *
-   * value = 12345600
+   * value = 12345600n
    * precision = 5
-   * factor = 100000
+   * factor = 100000n
    */
 
   /** The original token's decimals. Only used during wrapping and unwrapping. */
@@ -30,19 +59,19 @@ export default class N {
 
   /** Internal value is original value rebased on higher precision. */
   public value!: bigint
-  /** Internal decimal precision. */
-  public precision: number = N.DEFAULT_PRECISION
+  /** Internal decimal precision. This is the number of digits used to store the decimals. https://simple.wikipedia.org/wiki/Precision_(numbers) */
+  public readonly precision: number = N.DEFAULT_PRECISION
   /** Internal decimal precision as multiplier: 10^precision. */
-  public factor!: bigint
+  public readonly factor!: bigint
 
-  constructor(value: N)
+  constructor(instance: N)
+  constructor(value: string, _ignored?: undefined, precision?: number)
   /**
    * @argument options.isPrecise is useful when you want to construct new N() with values from another BigInt implementation.
    * It stores the `value` directly into the new object without rebasing to new precision.
    * E.g. `12345600` from above example is a **precise** value of a number `123.456` rebased with precision = 5.
    */
   constructor(value: bigint, decimals: number, precision: number, options: { isPrecise: true })
-  constructor(value: string, decimals?: undefined, precision?: number, options?: AnyObject)
   constructor(value?: string | number | bigint, decimals?: number, precision?: number, options?: { isPrecise?: boolean })
   /**
    * @param decimals How many numbers of the specified `value` are decimal places.
@@ -52,6 +81,7 @@ export default class N {
    */
   constructor(value: NLike = 0, decimals = 0, precision: number = N.DEFAULT_PRECISION, options?: { isPrecise?: boolean }) {
 
+    assert(decimals >= 0, "Decimals can't be negative.")
     assert(precision >= decimals, 'Precision cannot be smaller than decimals.')
 
     if (value instanceof N) {
@@ -72,7 +102,6 @@ export default class N {
     if (options?.isPrecise === true) {
       this.value = BigInt(value)
     } else {
-
       this.value = BigInt(value) * this.factor / this.decimalsFactor
     }
 
@@ -82,27 +111,33 @@ export default class N {
     return new N(this)
   }
 
-  /** Returns the truncated BigInt value. */
-  valueOf(): bigint { return this.value / this.factor }
-
-  /** Returns the BigInt value including original decimals. */
-  toDecimal(): bigint
-  /** Returns the BigInt value including specified number of decimals. */
-  toDecimal(decimals: number): bigint
-
-  toDecimal(decimals: number = this.decimals): bigint {
-    return this.value * (10n ** BigInt(decimals)) / this.factor
-  }
+  /** Returns the rounded BigInt value. Same as calling `N.toDecimal(0)`. */
+  valueOf(): bigint { return this.value / this.factor + this.rounder() }
 
   /** Returns the internal BigInt value using internal precision. */
   toPrecise(): bigint { return this.value }
 
-  /** Returns the value as a decimal string. */
-  toString(): string {
-    const decimal = this.toDecimal().toString().padStart(this.decimals, '0')
-    return this.decimals
-      ? decimal.slice(0, -this.decimals) + '.' + decimal.slice(-this.decimals)
-      : decimal
+  /** Returns the value as a bigint with original decimals. */
+  toDecimal(): bigint
+  /** Returns the value as a bigint to specified precision. */
+  toDecimal(precision: number): bigint
+  toDecimal(precision: number = this.decimals): bigint {
+    if (precision < this.precision) {
+      const newDecimalsFactor = 10n ** BigInt(this.precision - precision)
+      return this.value / newDecimalsFactor + this.rounder(this.value, newDecimalsFactor)
+    }
+    return this.value * 10n ** BigInt(precision - this.precision)
+  }
+
+  /** Returns the value as a string with decimal point and original precision. */
+  toString(): string
+  /** Returns the value as a string with decimal point to specified precision. */
+  toString(precision: number): string
+  toString(precision: number = this.decimals): string {
+    const decimal = this.toDecimal(precision).toString().padStart(precision, '0')
+    return (precision) > 0
+      ? decimal.slice(0, -precision) + '.' + decimal.slice(-precision)
+      : decimal + ''.padEnd(-precision, '0')
   }
 
   /* Arithmetics */
@@ -203,15 +238,13 @@ export default class N {
 
   /* Helpers */
 
-  /** Brings the other operand to same precision to allow mathematical interaction. */
+  /** Brings the other operand to the same precision to allow mathematical interaction. */
   private rebase(instance: NLike): bigint {
-    if (!(instance instanceof N)) {
-      instance = this.nify(instance)
-    }
+    instance = this.nfy(instance)
 
     if (instance.precision != this.precision) {
       /*
-        The instance's value can potentially lose precision if it has higher factor
+        The other instance's value can potentially lose precision if it has higher factor
         than this.factor or the DEFAULT_PRECISION, but it shouldn't matter anyway,
         since we have a fixed precision on *this*,
         meaning that the result of the arithmetic operation would get truncated anyway.
@@ -222,12 +255,22 @@ export default class N {
     return instance.value
   }
 
-  /** This is an internal shortcut for the constructor. */
-  private nify(instance: NLike): N {
+  /** This is an internal shortcut for the constructor. Pronounced N-fy. */
+  private nfy(instance: NLike): N {
     if (!(instance instanceof N)) {
       return new N(instance, 0, this.precision)
     }
     return instance
   }
 
+  /** When rounding, this represents the "1" that needs to be added or subtracted. */
+  private rounder(value: bigint = this.value, factor: bigint = this.factor) {
+    const sign = value < 0 ? -1n : 1n
+    return (sign * value % factor) << 1n >= factor ? sign : 0n
+  }
+
 }
+
+
+// Make BigInt serializable with `JSON.stringify()`
+(BigInt.prototype as any).toJSON = function () { return this.toString() }
