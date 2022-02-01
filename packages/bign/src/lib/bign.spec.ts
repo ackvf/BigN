@@ -3,12 +3,7 @@ import N from './bign'
 
 expect.extend({
   N_toExactlyMatch(a: N, b: N) {
-    let pass = true
-
-    // TODO it is little more complex to asses that two arbitrary precision numbers have same value
-    if (a.value !== b.value) pass = false
-    if (a.precision !== b.precision) pass = false
-    if (a.factor !== b.factor) pass = false
+    let pass = a.eq(b)
 
     if (pass) {
       return {
@@ -153,7 +148,7 @@ describe('N: BigInt tests', () => {
        */
       const x = new N(123456789098765n, 5)
 
-    test(`N.toString()`, () => {
+      test(`N.toString()`, () => {
         const result = x.toString()
         const expected = '1234567890.98765'
 
@@ -192,8 +187,8 @@ describe('N: BigInt tests', () => {
         const result = x.toString(-3)
         const expected = '1234568000'
 
-      expect(result).toBe(expected)
-    })
+        expect(result).toBe(expected)
+      })
 
     })
 
@@ -327,13 +322,13 @@ describe('N: BigInt tests', () => {
 
     describe('Truthy', () => {
 
-      test(`N.eq(N) : A == A`, () => {
+      test(`N.eq(N)  : A == A`, () => {
         const compared = A()
         const comparand = A()
         expect(compared.eq(comparand)).toBeTruthy()
       })
 
-      test(`N.lt(N) : A < C`, () => {
+      test(`N.lt(N)  : A < C`, () => {
         const compared = A()
         const comparand = C()
         expect(compared.lt(comparand)).toBeTruthy()
@@ -345,7 +340,7 @@ describe('N: BigInt tests', () => {
         expect(compared.lte(comparand)).toBeTruthy()
       })
 
-      test(`N.gt(N) : A > B`, () => {
+      test(`N.gt(N)  : A > B`, () => {
         const compared = A()
         const comparand = B()
         expect(compared.gt(comparand)).toBeTruthy()
@@ -360,13 +355,13 @@ describe('N: BigInt tests', () => {
 
     describe('Falsy', () => {
 
-      test(`N.eq(N) ! A == C`, () => {
+      test(`N.eq(N)  ! A == C`, () => {
         const compared = A()
         const comparand = C()
         expect(compared.eq(comparand)).toBeFalsy()
       })
 
-      test(`N.lt(N) ! A < B`, () => {
+      test(`N.lt(N)  ! A < B`, () => {
         const compared = A()
         const comparand = B()
         expect(compared.lt(comparand)).toBeFalsy()
@@ -378,7 +373,7 @@ describe('N: BigInt tests', () => {
         expect(compared.lte(comparand)).toBeFalsy()
       })
 
-      test(`N.gt(N) ! A > C`, () => {
+      test(`N.gt(N)  ! A > C`, () => {
         const compared = A()
         const comparand = C()
         expect(compared.gt(comparand)).toBeFalsy()

@@ -16,8 +16,8 @@ type NLike = string | number | bigint | N
 
 export default class N {
 
+  /** *Not yet implemented* */// TODO
   static readonly ROUNDING = {
-    // TODO: Not yet implemented
     // 'DOWN': 0,
     // 'UP': 1,
     // 'TOWARD_ZERO': 2,
@@ -35,7 +35,10 @@ export default class N {
   /** The number of decimal places for internal calculations. Changing this value does not affect existing instances as it is used only in constructor. */
   static DEFAULT_PRECISION = 80
 
-  /** Changing this value affects all instances. */
+  /** Changing this value affects all instances.
+   *
+   * *Not yet implemented*
+   */// TODO
   static ROUNDING_MODE = N.ROUNDING.HALF_AWAY_FROM_ZERO
 
   // -------------------------------------------------------------------------------------------------------------------
@@ -263,7 +266,7 @@ export default class N {
     return instance
   }
 
-  /** When rounding, this represents the "1" that needs to be added or subtracted. */
+  /** When rounding, this represents the carried "1" that needs to be added or subtracted. */
   private rounder(value: bigint = this.value, factor: bigint = this.factor) {
     const sign = value < 0 ? -1n : 1n
     return (sign * value % factor) << 1n >= factor ? sign : 0n
