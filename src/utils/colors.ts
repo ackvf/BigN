@@ -17,7 +17,7 @@ export const colors = {
     magenta: '\x1b[35m',
     cyan: '\x1b[36m',
     white: '\x1b[37m',
-    crimson: '\x1b[38m', // Scarlet
+    crimson: '\x1b[38m',
   },
 
   bg: {
@@ -43,13 +43,34 @@ function extractMessage(args: Args): string {
   return `${args[0]}`
 }
 
-function isTemplate(args: Args): args is TemplateArgs { return args[0].raw }
+function isTemplate(args: Args): args is TemplateArgs { return args?.[0]?.raw }
 
 type TemplateArgs = [message: TemplateStringsArray, ...values: any[]]
 type Args = [message: any] | TemplateArgs
+type Colorizer = (...message: Args) => string
 
 // ---------------------------------------------------------------------------------------------------------------------
 
-export const dyeRed = (...message: Args): string => colors.bg.red + colors.fg.black + m(message) + colors.reset
-export const red = (...message: Args): string => colors.fg.red + m(message) + colors.reset
-export const green = (...message: Args): string => colors.fg.green + m(message) + colors.reset
+/**
+ * Colorize console output with these helper methods.
+ * They can either be used as *tagged template literal* or as a *function*.
+ *
+ * @example
+ * // Function call
+ * red('received')
+ * green(`Hi number ${five}`)
+ *
+ * // Tagged template literal
+ * red`received`
+ * green`Hi number ${five}`
+ *
+ * @example
+ * `expect(${red`received`})${name}(${green`expected`})
+ *
+ * Expected: "${green(expected)}"
+ * Received: "${red(actual)}"`
+ */
+
+export const dyeRed: Colorizer = (...message) => colors.bg.red + colors.fg.black + m(message) + colors.reset
+export const red: Colorizer = (...message) => colors.fg.red + m(message) + colors.reset
+export const green: Colorizer = (...message) => colors.fg.green + m(message) + colors.reset
