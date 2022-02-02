@@ -274,6 +274,5 @@ export default class N {
 
 }
 
-
 // Make BigInt serializable with `JSON.stringify()`
 (BigInt.prototype as any).toJSON = function () { return this.toString() }
