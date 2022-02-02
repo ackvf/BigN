@@ -1,6 +1,28 @@
+import { red, green } from '@ackvf/colors'
 import { assert } from 'console'
 
-type NLike = string | number | bigint | N
+export type NLike = string | number | bigint | N
+
+export type Rounder = (value: bigint, factor: bigint) => 1n | -1n | 0n
+
+/* Exported at N.ROUNDING */
+enum ROUNDING_MODES {
+  // 'DOWN' = 0,
+  // 'UP' = 1,
+  /** a.k.a. Truncate */
+  'TOWARD_ZERO' = 2,
+  // 'AWAY_FROM_ZERO' = 3,
+  // 'HALF_DOWN' = 4,
+  // 'HALF_UP' = 5,
+  // 'HALF_TOWARD_ZERO' = 6,
+  'HALF_AWAY_FROM_ZERO' = 7,
+  // 'HALF_TO_EVEN' = 8,
+  // 'HALF_TO_ODD' = 9,
+  'CUSTOM' = 10,
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------------------------
 
 /**
  * @author Qwerty (Vítězslav Ackermann Ferko) <qwerty@qwerty.xyz>
@@ -16,32 +38,38 @@ type NLike = string | number | bigint | N
 
 export default class N {
 
-  /** *Not yet implemented* */// TODO
-  static readonly ROUNDING = {
-    // 'DOWN': 0,
-    // 'UP': 1,
-    // 'TOWARD_ZERO': 2,
-    // 'AWAY_FROM_ZERO': 3,
-    // 'HALF_DOWN': 4,
-    // 'HALF_UP': 5,
-    // 'HALF_TOWARD_ZERO': 6,
-    'HALF_AWAY_FROM_ZERO': 7,
-    // 'HALF_TO_EVEN': 8,
-    // 'HALF_TO_ODD': 9,
-  } as const
+  static readonly ROUNDING = ROUNDING_MODES
 
   // GLOBAL SETTINGS ---------------------------------------------------------------------------------------------------
 
-  /** The number of decimal places for internal calculations. Changing this value does not affect existing instances as it is used only in constructor. */
+  /**
+   * The number of decimal places for internal calculations. Changing this value does not affect existing instances as it is used only in constructor.
+   *
+   * You can override this value adhoc in situ.
+   * @example
+   *
+   * let n = new N(12300, 2, 80) // <- 80 is the precision override
+   */
   static DEFAULT_PRECISION = 80
 
-  /** Changing this value affects all instances.
+  /**
+   * Changing this value affects all instances.
    *
-   * *Not yet implemented*
-   */// TODO
-  static ROUNDING_MODE = N.ROUNDING.HALF_AWAY_FROM_ZERO
+   * @example
+   * N.ROUNDING_MODE = N.ROUNDING.HALF_AWAY_FROM_ZERO
+   */
+  static ROUNDING_MODE: ROUNDING_MODES = N.ROUNDING.HALF_AWAY_FROM_ZERO
 
-  // -------------------------------------------------------------------------------------------------------------------
+  /**
+   * Override this property to provide custom rounding function.
+   *
+   * @example
+   * N.ROUNDING_CUSTOM_FUNCTION = (value: bigint, factor: bigint): -1n | 0n | 1n => { ... }
+   * N.ROUNDING_MODE = N.ROUNDING.CUSTOM
+   */
+  static ROUNDING_CUSTOM_FUNCTION: Rounder = () => 0n
+
+  // INTERNALS ---------------------------------------------------------------------------------------------------------
 
   /**
    * Given float value 123.456 and DEFAULT_PRECISION = 5,
@@ -82,10 +110,7 @@ export default class N {
    * @param options.isPrecise
    * @returns
    */
-  constructor(value: NLike = 0, decimals = 0, precision: number = N.DEFAULT_PRECISION, options?: { isPrecise?: boolean }) {
-
-    assert(decimals >= 0, "Decimals can't be negative.")
-    assert(precision >= decimals, 'Precision cannot be smaller than decimals.')
+  constructor(value: NLike = 0, decimals = 0, precision: number = N.DEFAULT_PRECISION || decimals, options?: { isPrecise?: boolean }) {
 
     if (value instanceof N) {
       return Object.assign(this, value)
@@ -94,7 +119,11 @@ export default class N {
     if (typeof value === 'string' && value.includes('.')) {
       decimals = value.length - 1 - value.indexOf('.')
       value = value.split('.').join('')
+      precision ||= decimals
     }
+
+    assert(decimals >= 0, "Decimals cannot be negative.")
+    assert(precision >= 0, 'Precision cannot be negative.') // TODO: it actually can https://simple.wikipedia.org/wiki/Precision_(numbers)
 
     this.decimals = decimals
     this.decimalsFactor = 10n ** BigInt(decimals)
@@ -169,7 +198,7 @@ export default class N {
     return Multiplier
   }
 
-  /** Alias for `mul(N)`. Used by BigNumber.js. */
+  /** Alias for `mul(NLike)`. Used by BigNumber.js. */
   multipliedBy(Factor: NLike): N { return this.mul(Factor) }
 
   div(Divisor: NLike): N {
@@ -268,12 +297,102 @@ export default class N {
 
   /** When rounding, this represents the carried "1" that needs to be added or subtracted. */
   private rounder(value: bigint = this.value, factor: bigint = this.factor) {
-    const sign = value < 0 ? -1n : 1n
-    return (sign * value % factor) << 1n >= factor ? sign : 0n
+    return this.rounders[N.ROUNDING_MODE](value, factor)
+  }
+
+  readonly rounders = {
+    [N.ROUNDING.TOWARD_ZERO]: function TOWARD_ZERO(value: bigint, factor: bigint) {
+      return 0n
+    },
+    [N.ROUNDING.HALF_AWAY_FROM_ZERO]: function HALF_AWAY_FROM_ZERO(value: bigint, factor: bigint) {
+      const sign = value < 0 ? -1n : 1n
+      return (sign * value % factor) << 1n >= factor ? sign : 0n
+    },
+    /** Custom rounding function can be configured at N.ROUNDING_CUSTOM_FUNCTION. */
+    [N.ROUNDING.CUSTOM]: N.ROUNDING_CUSTOM_FUNCTION,
+  } as const
+
+}
+
+// ---------------------------------------------------------------------------------------------------------------------
+// ---------------------------------------------------------------------------------------------------------------------
+
+// Make BigInt serializable with `JSON.stringify()`
+(BigInt.prototype as any).toJSON = function () { return this.toString() }
+
+function jestMessage(name: string, actual: any, expected: any) {
+  return () => `expect(${red`received`})${name}(${green`expected`})
+
+Expected: "${green(expected)}"
+Received: "${red(actual)}"`
+}
+
+export const jestMatchers = {
+  N_toExactlyMatch(actual: N, expected: N) {
+    let pass = true
+
+    if (actual.value !== expected.value) pass = false
+    if (actual.precision !== expected.precision) pass = false
+    if (actual.factor !== expected.factor) pass = false
+
+    if (pass) {
+      return {
+        message: jestMessage('.not.N_toExactlyMatch', actual, expected),
+        pass: true,
+      }
+    } else {
+      return {
+        message: jestMessage('.N_toExactlyMatch', actual, expected),
+        pass: false,
+      }
+    }
+  },
+  N_toBeAround(actual: bigint | number, expected: bigint | number, precision?: bigint | number) {
+    let pass = false
+
+    if (typeof actual === 'bigint' && typeof expected === 'bigint' && typeof precision === 'bigint') {
+      actual = actual / 10n ** precision
+      expected = expected / 10n ** precision
+      pass = actual - expected === 0n
+    }
+    else if (typeof actual === 'number' && typeof expected === 'number' && typeof precision === 'number') {
+      actual = actual / 10 ** precision
+      expected = expected / 10 ** precision
+      pass = actual - expected === 0
+    }
+
+    if (pass) {
+      return {
+        message: jestMessage('.not.N_toBeAround', actual, expected),
+        pass: true
+      }
+    } else {
+      return {
+        message: jestMessage('.N_toBeAround', actual, expected),
+        pass: false
+      }
+    }
   }
 
 }
 
-
-// Make BigInt serializable with `JSON.stringify()`
-(BigInt.prototype as any).toJSON = function () { return this.toString() }
+declare global {
+  namespace jest { // eslint-disable-line @typescript-eslint/no-namespace
+    interface Matchers<R> {
+      /**
+       * Tests that two instances match exactly, that is, their `value`, `precision` and `factor` are exactly the same.
+       *
+       * @example
+       * import { jestMatchers } from 'BigN'
+       * expect.extend(jestMatchers)
+       */
+      N_toExactlyMatch(b: N): R
+      /**
+       * @example
+       * import { jestMatchers } from 'BigN'
+       * expect.extend(jestMatchers)
+       */
+      N_toBeAround<T extends bigint | number>(b: T, precisionCutOff?: T): R
+    }
+  }
+}

@@ -1,33 +1,6 @@
-import N from './bign'
+import N, { jestMatchers, Rounder } from './bign'
 
-
-expect.extend({
-  N_toExactlyMatch(a: N, b: N) {
-    let pass = a.eq(b)
-
-    if (pass) {
-      return {
-        message: () =>
-          `expected ${a.toString()} not to be same as ${b.toString()}`,
-        pass: true,
-      }
-    } else {
-      return {
-        message: () =>
-          `expected ${b.toString()} to be same as ${b.toString()}`,
-        pass: false,
-      }
-    }
-  },
-})
-
-declare global {
-  namespace jest { // eslint-disable-line @typescript-eslint/no-namespace
-    interface Matchers<R> {
-      N_toExactlyMatch(b: N): R
-    }
-  }
-}
+expect.extend(jestMatchers)
 
 describe('N: BigInt tests', () => {
 
@@ -65,26 +38,22 @@ describe('N: BigInt tests', () => {
     })
 
     test(`new N(N)`, () => {
-      const a = new N(100n)
-
-      const result = new N(a)
+      const result = new N(A())
       expect(result).N_toExactlyMatch(control)
       expect(result !== control).toBeTruthy()
     })
 
     test(`new N({ isPrecise: true })`, () => {
-      const a = new N(123456789000000000n, 2, 10, { isPrecise: true })
+      const n = new N(123456789000000000n, 2, 10, { isPrecise: true })
 
-      const result = a.toString()
+      const result = n.toString()
       const expected = '12345678.90'
 
       expect(result).toEqual(expected)
     })
 
     test(`N.clone()`, () => {
-      const a = new N(100n)
-
-      const result = a.clone()
+      const result = A().clone()
       expect(result).N_toExactlyMatch(control)
       expect(result !== control).toBeTruthy()
     })
@@ -137,7 +106,7 @@ describe('N: BigInt tests', () => {
       const a = A()
 
       const result = a.toPrecise()
-      const expected = 100n * 10n ** BigInt(N.DEFAULT_PRECISION)
+      const expected = 100n * 10n ** BigInt(a.precision)
 
       expect(result.toString()).toBe(expected.toString())
     })
@@ -203,22 +172,73 @@ describe('N: BigInt tests', () => {
       N.ROUNDING_MODE = N.ROUNDING.HALF_AWAY_FROM_ZERO
     })
 
+    /* 2 : TOWARD_ZERO */
+
+    describe('N.ROUNDING.TOWARD_ZERO', () => {
+
+      beforeAll(() => {
+        N.ROUNDING_MODE = N.ROUNDING.TOWARD_ZERO
+      })
+
+      test(`N.valueOf() :  5 rounds down`, () => {
+        const n = new N('1234.5')
+
+        const result = n.valueOf()
+        const expected = 1234n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`N.valueOf() :  4 rounds down`, () => {
+        const n = new N('123.4')
+
+        const result = n.valueOf()
+        const expected = 123n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`N.valueOf() : -4 rounds up`, () => {
+        const n = new N('-123.4')
+
+        const result = n.valueOf()
+        const expected = -123n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`N.valueOf() : -5 rounds up`, () => {
+        const n = new N('-1234.5')
+
+        const result = n.valueOf()
+        const expected = -1234n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`rounding is symmetric : - new N(n) == new N(-n)`, () => {
+        const m = new N('1234.5')
+        const n = new N('-1234.5')
+
+        const mr = (-m.valueOf()).toString()
+        const nr = n.valueOf().toString()
+        const expected = '-1234'
+
+        expect(mr).toBe(expected)
+        expect(mr).toBe(nr)
+      })
+
+    })
+
+    /* 7 : HALF_AWAY_FROM_ZERO */
+
     describe('N.ROUNDING.HALF_AWAY_FROM_ZERO', () => {
 
       beforeAll(() => {
         N.ROUNDING_MODE = N.ROUNDING.HALF_AWAY_FROM_ZERO
       })
 
-      test(`N.valueOf() : 4 rounds down`, () => {
-        const c = C()
-
-        const result = c.valueOf()
-        const expected = 123n
-
-        expect(result.toString()).toBe(expected.toString())
-      })
-
-      test(`N.valueOf() : 5 rounds up`, () => {
+      test(`N.valueOf() :  5 rounds up`, () => {
         const n = new N('1234.5')
 
         const result = n.valueOf()
@@ -227,8 +247,17 @@ describe('N: BigInt tests', () => {
         expect(result.toString()).toBe(expected.toString())
       })
 
+      test(`N.valueOf() :  4 rounds down`, () => {
+        const n = new N('123.4')
+
+        const result = n.valueOf()
+        const expected = 123n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
       test(`N.valueOf() : -4 rounds up`, () => {
-        const n = new N('-123.45')
+        const n = new N('-123.4')
 
         const result = n.valueOf()
         const expected = -123n
@@ -245,16 +274,39 @@ describe('N: BigInt tests', () => {
         expect(result.toString()).toBe(expected.toString())
       })
 
-      test(`rounding is symmetric : - new N(n).toDecimal() == new N(-n).toDecimal()`, () => {
-        const m = new N('123.45')
-        const n = new N('-123.45')
+      test(`rounding is symmetric : - new N(n) == new N(-n)`, () => {
+        const m = new N('1234.5')
+        const n = new N('-1234.5')
 
-        const mr = (-m.toDecimal(1)).toString()
-        const nr = n.toDecimal(1).toString()
+        const mr = (-m.valueOf()).toString()
+        const nr = n.valueOf().toString()
         const expected = '-1235'
 
         expect(mr).toBe(expected)
         expect(mr).toBe(nr)
+      })
+
+    })
+
+    /* 10 : CUSTOM */
+
+    describe('N.ROUNDING.CUSTOM', () => {
+
+      const mockedRoundingFunction: Rounder = jest.fn(() => 0n)
+
+      beforeAll(() => {
+        N.ROUNDING_MODE = N.ROUNDING.CUSTOM
+        N.ROUNDING_CUSTOM_FUNCTION = mockedRoundingFunction
+      })
+
+      test(`is called`, () => {
+        const n = new N('1234.5')
+
+        const result = n.valueOf().toString()
+        const expected = 1234n.toString()
+
+        expect(result).toBe(expected)
+        expect(mockedRoundingFunction).toHaveBeenCalled()
       })
 
     })
@@ -266,41 +318,41 @@ describe('N: BigInt tests', () => {
   describe('Arithmetics', () => {
 
     test(`N.plus(N)  : A+B=C`, () => {
-      const expected = C().toPrecise()
+      const expected = Number(C())
 
       const a = A()
       const b = B()
-      const result = a.plus(b).toPrecise()
+      const result = Number(a.plus(b))
 
       expect(result).toBe(expected)
     })
 
     test(`N.minus(N) : C-B=A`, () => {
-      const expected = A().toPrecise()
+      const expected = Number(A())
 
       const a = C()
       const b = B()
-      const result = a.minus(b).toPrecise()
+      const result = Number(a.minus(b))
 
       expect(result).toBe(expected)
     })
 
     test(`N.mul(N)   : D×E=A`, () => {
-      const expected = A().toPrecise()
+      const expected = Number(A())
 
       const a = D()
       const b = E()
-      const result = a.mul(b).toPrecise()
+      const result = Number(a.mul(b))
 
       expect(result).toBe(expected)
     })
 
     test(`N.div(N)   : A÷E=D`, () => {
-      const expected = D().toPrecise()
+      const expected = Number(D())
 
       const a = A()
       const b = E()
-      const result = a.div(b).toPrecise()
+      const result = Number(a.div(b))
 
       expect(result).toBe(expected)
     })
@@ -388,5 +440,7 @@ describe('N: BigInt tests', () => {
     })
 
   })
+
+
 
 })
