@@ -11,6 +11,11 @@ describe('N: BigInt tests', () => {
   const D = () => new N(500n, 1)      // 50.0
   const E = () => new N(200000n, 5)   //  2.00000
 
+  beforeAll(() => {
+    // Tests are written with this rounding.
+    N.ROUNDING_MODE = N.ROUNDING.HALF_AWAY_FROM_ZERO
+  })
+
   /* Construction */
 
   describe('Construction', () => {
@@ -172,7 +177,99 @@ describe('N: BigInt tests', () => {
       N.ROUNDING_MODE = N.ROUNDING.HALF_AWAY_FROM_ZERO
     })
 
-    /* 2 : TOWARD_ZERO */
+    /* DOWN */
+
+    describe('N.ROUNDING.DOWN', () => {
+
+      beforeAll(() => {
+        N.ROUNDING_MODE = N.ROUNDING.DOWN
+      })
+
+      test(`N.valueOf() :  5 rounds down`, () => {
+        const n = new N('1234.5')
+
+        const result = n.valueOf()
+        const expected = 1234n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`N.valueOf() :  4 rounds down`, () => {
+        const n = new N('123.4')
+
+        const result = n.valueOf()
+        const expected = 123n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`N.valueOf() : -4 rounds down`, () => {
+        const n = new N('-123.4')
+
+        const result = n.valueOf()
+        const expected = -124n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`N.valueOf() : -5 rounds down`, () => {
+        const n = new N('-1234.5')
+
+        const result = n.valueOf()
+        const expected = -1235n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+    })
+
+    /* UP */
+
+    describe('N.ROUNDING.UP', () => {
+
+      beforeAll(() => {
+        N.ROUNDING_MODE = N.ROUNDING.UP
+      })
+
+      test(`N.valueOf() :  5 rounds up`, () => {
+        const n = new N('1234.5')
+
+        const result = n.valueOf()
+        const expected = 1235n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`N.valueOf() :  4 rounds up`, () => {
+        const n = new N('123.4')
+
+        const result = n.valueOf()
+        const expected = 124n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`N.valueOf() : -4 rounds up`, () => {
+        const n = new N('-123.4')
+
+        const result = n.valueOf()
+        const expected = -123n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+      test(`N.valueOf() : -5 rounds up`, () => {
+        const n = new N('-1234.5')
+
+        const result = n.valueOf()
+        const expected = -1234n
+
+        expect(result.toString()).toBe(expected.toString())
+      })
+
+    })
+
+    /* TOWARD_ZERO */
 
     describe('N.ROUNDING.TOWARD_ZERO', () => {
 
@@ -230,7 +327,7 @@ describe('N: BigInt tests', () => {
 
     })
 
-    /* 7 : HALF_AWAY_FROM_ZERO */
+    /* HALF_AWAY_FROM_ZERO */
 
     describe('N.ROUNDING.HALF_AWAY_FROM_ZERO', () => {
 
@@ -288,11 +385,11 @@ describe('N: BigInt tests', () => {
 
     })
 
-    /* 10 : CUSTOM */
+    /* CUSTOM */
 
     describe('N.ROUNDING.CUSTOM', () => {
 
-      const mockedRoundingFunction: Rounder = jest.fn(() => 0n)
+      const mockedRoundingFunction: Rounder = jest.fn(() => -1n)
 
       beforeAll(() => {
         N.ROUNDING_MODE = N.ROUNDING.CUSTOM
@@ -303,7 +400,7 @@ describe('N: BigInt tests', () => {
         const n = new N('1234.5')
 
         const result = n.valueOf().toString()
-        const expected = 1234n.toString()
+        const expected = 1233n.toString()
 
         expect(result).toBe(expected)
         expect(mockedRoundingFunction).toHaveBeenCalled()

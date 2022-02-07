@@ -7,18 +7,25 @@ export type Rounder = (value: bigint, factor: bigint) => 1n | -1n | 0n
 
 /* Exported at N.ROUNDING */
 enum ROUNDING_MODES {
-  // 'DOWN' = 0,
-  // 'UP' = 1,
-  /** a.k.a. Truncate */
-  'TOWARD_ZERO' = 2,
-  // 'AWAY_FROM_ZERO' = 3,
-  // 'HALF_DOWN' = 4,
-  // 'HALF_UP' = 5,
-  // 'HALF_TOWARD_ZERO' = 6,
-  'HALF_AWAY_FROM_ZERO' = 7,
-  // 'HALF_TO_EVEN' = 8,
-  // 'HALF_TO_ODD' = 9,
-  'CUSTOM' = 10,
+  /** a.k.a. **Floor** or **toward Negative Infinity** */
+  'DOWN' = 'DOWN',
+  /** a.k.a. **Ceil** or **toward Positive Infinity** */
+  'UP' = 'UP',
+  /** a.k.a. **Truncate** */
+  'TOWARD_ZERO' = 'TOWARD_ZERO',
+  // 'AWAY_FROM_ZERO' = 'AWAY_FROM_ZERO',
+  // 'HALF_DOWN' = 'HALF_DOWN',
+  // 'HALF_UP' = 'HALF_UP',
+  // 'HALF_TOWARD_ZERO' = 'HALF_TOWARD_ZERO',
+  'HALF_AWAY_FROM_ZERO' = 'HALF_AWAY_FROM_ZERO',
+  // 'HALF_TO_EVEN' = 'HALF_TO_EVEN',
+  // 'HALF_TO_ODD' = 'HALF_TO_ODD',
+  /**
+   * @example
+   * N.ROUNDING_CUSTOM_FUNCTION = (value: bigint, factor: bigint): -1n | 0n | 1n => { ... }
+   * N.ROUNDING_MODE = N.ROUNDING.CUSTOM
+   */
+  'CUSTOM' = 'CUSTOM',
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
@@ -29,7 +36,7 @@ enum ROUNDING_MODES {
  *
  * @description This library is intended to work as a replacement for other
  * BigInt-like libraries, such as BigNumber, by implementing all the necessary methods.
- * Simply replace the imports and it should work(tm).
+ * Simply replace the imports and it should _just work™_.
  *
  * @example
  * // import BigNumber from "bignumber.js"  // <- before
@@ -94,6 +101,8 @@ export default class N {
   public readonly precision: number = N.DEFAULT_PRECISION
   /** Internal decimal precision as multiplier: 10^precision. */
   public readonly factor!: bigint
+
+  // --
 
   constructor(instance: N)
   constructor(value: string, _ignored?: undefined, precision?: number)
@@ -166,7 +175,7 @@ export default class N {
   /** Returns the value as a string with decimal point to specified precision. */
   toString(precision: number): string
   toString(precision: number = this.decimals): string {
-    const decimal = this.toDecimal(precision).toString().padStart(precision, '0')
+    const decimal: string = this.toDecimal(precision).toString().padStart(precision, '0')
     return (precision) > 0
       ? decimal.slice(0, -precision) + '.' + decimal.slice(-precision)
       : decimal + ''.padEnd(-precision, '0')
@@ -175,25 +184,25 @@ export default class N {
   /* Arithmetics */
 
   plus(Addend: NLike): N {
-    const Augend = this.clone()
-    const augend = Augend.value
-    const addend = this.rebase(Addend)
+    const Augend: N = this.clone()
+    const augend: bigint = Augend.value
+    const addend: bigint = this.rebase(Addend)
     Augend.value = augend + addend
     return Augend
   }
 
   minus(Subtrahend: NLike): N {
-    const Minuend = this.clone()
-    const minuend = Minuend.value
-    const subtrahend = this.rebase(Subtrahend)
+    const Minuend: N = this.clone()
+    const minuend: bigint = Minuend.value
+    const subtrahend: bigint = this.rebase(Subtrahend)
     Minuend.value = minuend - subtrahend
     return Minuend
   }
 
   mul(Factor: NLike): N {
-    const Multiplier = this.clone()
-    const multiplier = Multiplier.value
-    const multiplicand = this.rebase(Factor)
+    const Multiplier: N = this.clone()
+    const multiplier: bigint = Multiplier.value
+    const multiplicand: bigint = this.rebase(Factor)
     Multiplier.value = multiplier * multiplicand / this.factor
     return Multiplier
   }
@@ -202,9 +211,9 @@ export default class N {
   multipliedBy(Factor: NLike): N { return this.mul(Factor) }
 
   div(Divisor: NLike): N {
-    const Dividend = this.clone()
-    const dividend = Dividend.value
-    const divisor = this.rebase(Divisor)
+    const Dividend: N = this.clone()
+    const dividend: bigint = Dividend.value
+    const divisor: bigint = this.rebase(Divisor)
     Dividend.value = this.factor * dividend / divisor
     return Dividend
   }
@@ -214,57 +223,52 @@ export default class N {
   }
 
   sqrt(): N {
-    const Radicand = this.clone()
+    const Radicand: N = this.clone()
+    const x: bigint = Radicand.value * Radicand.factor
 
-    if (Radicand.value < 0n) {
-      throw 'square root of negative numbers is not supported'
+    if (x < 0n) { throw 'square root of negative numbers is not supported' }
+    if (x < 2n) { return Radicand }
+
+    let z: bigint = x / 2n + 1n
+    let y: bigint = x
+    while (z < y) {
+      y = z
+      z = (x / z + z) / 2n
     }
 
-    if (Radicand.value < 2n) {
-      return Radicand
-    }
-
-    function newtonIteration(n: bigint, x0: bigint): bigint {
-      const x1 = ((n / x0) + x0) >> 1n
-      if (x0 === x1 || x0 === (x1 - 1n)) {
-        return x0
-      }
-      return newtonIteration(n, x1)
-    }
-
-    Radicand.value = newtonIteration(Radicand.value * Radicand.factor, 1n)
+    Radicand.value = y
     return Radicand
   }
 
   /* Comparisons */
 
   eq(Comparand: NLike): boolean {
-    const compared = this.value
-    const comparand = this.rebase(Comparand)
+    const compared: bigint = this.value
+    const comparand: bigint = this.rebase(Comparand)
     return compared == comparand
   }
 
   lt(Comparand: NLike): boolean {
-    const compared = this.value
-    const comparand = this.rebase(Comparand)
+    const compared: bigint = this.value
+    const comparand: bigint = this.rebase(Comparand)
     return compared < comparand
   }
 
   lte(Comparand: NLike): boolean {
-    const compared = this.value
-    const comparand = this.rebase(Comparand)
+    const compared: bigint = this.value
+    const comparand: bigint = this.rebase(Comparand)
     return compared <= comparand
   }
 
   gt(Comparand: NLike): boolean {
-    const compared = this.value
-    const comparand = this.rebase(Comparand)
+    const compared: bigint = this.value
+    const comparand: bigint = this.rebase(Comparand)
     return compared > comparand
   }
 
   gte(Comparand: NLike): boolean {
-    const compared = this.value
-    const comparand = this.rebase(Comparand)
+    const compared: bigint = this.value
+    const comparand: bigint = this.rebase(Comparand)
     return compared >= comparand
   }
 
@@ -297,10 +301,26 @@ export default class N {
 
   /** When rounding, this represents the carried "1" that needs to be added or subtracted. */
   private rounder(value: bigint = this.value, factor: bigint = this.factor) {
-    return this.rounders[N.ROUNDING_MODE](value, factor)
+    return N.rounders[N.ROUNDING_MODE](value, factor)
   }
 
-  readonly rounders = {
+  static readonly rounders = {
+    [N.ROUNDING.DOWN]: function DOWN(value: bigint, factor: bigint) {
+      const sign = value < 0 ? -1n : 1n
+      return (sign * value % factor) === 0n
+        ? 0n
+        : sign < 0
+          ? -1n
+          : 0n
+    },
+    [N.ROUNDING.UP]: function UP(value: bigint, factor: bigint) {
+      const sign = value < 0 ? -1n : 1n
+      return (sign * value % factor) === 0n
+        ? 0n
+        : sign < 0
+          ? 0n
+          : 1n
+    },
     [N.ROUNDING.TOWARD_ZERO]: function TOWARD_ZERO(value: bigint, factor: bigint) {
       return 0n
     },
@@ -309,7 +329,7 @@ export default class N {
       return (sign * value % factor) << 1n >= factor ? sign : 0n
     },
     /** Custom rounding function can be configured at N.ROUNDING_CUSTOM_FUNCTION. */
-    [N.ROUNDING.CUSTOM]: N.ROUNDING_CUSTOM_FUNCTION,
+    [N.ROUNDING.CUSTOM]: (value: bigint, factor: bigint) => N.ROUNDING_CUSTOM_FUNCTION(value, factor),
   } as const
 
 }
