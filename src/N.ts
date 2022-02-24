@@ -51,10 +51,12 @@ export default class N {
   /**
    * The number of decimal places for internal calculations. Changing this value does not affect existing instances as it is used only in constructor.
    *
-   * You can override this value adhoc in situ.
+   * If set to anything less than **original decimals**, they will be used instead.
+   *
+   * Note: you can also override the precision adhoc in situ via constructor parameter.
    * @example
    *
-   * let n = new N(12300, 2, 80) // <- 80 is the precision override
+   * let n = new N(12300, 2, 80) // <- precision is set to 80 in the constructor
    */
   static DEFAULT_PRECISION = 80
 
@@ -78,7 +80,7 @@ export default class N {
   // INTERNALS ---------------------------------------------------------------------------------------------------------
 
   /**
-   * Given float value 123.456 and DEFAULT_PRECISION = 5,
+   * Given a float value 123.456 and DEFAULT_PRECISION = 5,
    * we get 123456 with 3 decimals, which is then internally stored as:
    *
    * decimals = 3
@@ -118,7 +120,7 @@ export default class N {
    * @param options.isPrecise
    * @returns
    */
-  constructor(value: NLike = 0, decimals: number = 0, precision: number = N.DEFAULT_PRECISION || decimals, options?: { isPrecise?: boolean }) {
+  constructor(value: NLike = 0, decimals: number = 0, precision: number = N.DEFAULT_PRECISION, options?: { isPrecise?: boolean }) {
 
     if (value instanceof N) {
       return Object.assign(this, value)
@@ -131,12 +133,11 @@ export default class N {
     }
 
     assert(decimals >= 0, "Decimals cannot be negative.")
-    assert(precision >= 0, 'Precision cannot be negative.') // TODO: it actually can https://simple.wikipedia.org/wiki/Precision_(numbers)
 
     this.decimals = decimals
     this.decimalsFactor = 10n ** BigInt(decimals)
 
-    this.precision = precision
+    this.precision = precision = precision < decimals ? decimals : precision
     this.factor = 10n ** BigInt(precision)
 
     if (options?.isPrecise === true) {
@@ -157,7 +158,7 @@ export default class N {
   /** Returns the internal BigInt value using internal precision. */
   toPrecise(): bigint { return this.value }
 
-  /** Returns the value as a bigint with original decimals. */
+  /** Returns the value as a bigint with original decimal precision. */
   toDecimal(): bigint
   /** Returns the value as a bigint to specified precision. */
   toDecimal(precision: number): bigint
