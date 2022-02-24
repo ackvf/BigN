@@ -100,9 +100,9 @@ export default class N {
   /** Internal value is original value rebased on higher precision. */
   public value!: bigint
   /** Internal decimal precision. This is the number of digits used to store the decimals. https://simple.wikipedia.org/wiki/Precision_(numbers) */
-  public readonly precision: number = N.DEFAULT_PRECISION
+  public precision: number = N.DEFAULT_PRECISION
   /** Internal decimal precision as multiplier: 10^precision. */
-  public readonly factor!: bigint
+  public factor!: bigint
 
   // --
 
@@ -147,6 +147,7 @@ export default class N {
       this.value = BigInt(value) * this.factor / this.decimalsFactor
     }
 
+    console.debug('\n========== this\n', this)
   }
 
   clone() {
@@ -186,24 +187,24 @@ export default class N {
 
   plus(Addend: NLike): N {
     const Augend: N = this.clone()
+    const addend: bigint = Augend.rebase(Addend).value
     const augend: bigint = Augend.value
-    const addend: bigint = this.rebase(Addend)
     Augend.value = augend + addend
     return Augend
   }
 
   minus(Subtrahend: NLike): N {
     const Minuend: N = this.clone()
+    const subtrahend: bigint = Minuend.rebase(Subtrahend).value
     const minuend: bigint = Minuend.value
-    const subtrahend: bigint = this.rebase(Subtrahend)
     Minuend.value = minuend - subtrahend
     return Minuend
   }
 
   mul(Factor: NLike): N {
     const Multiplier: N = this.clone()
+    const multiplicand: bigint = Multiplier.rebase(Factor).value
     const multiplier: bigint = Multiplier.value
-    const multiplicand: bigint = this.rebase(Factor)
     Multiplier.value = multiplier * multiplicand / this.factor
     return Multiplier
   }
@@ -213,8 +214,8 @@ export default class N {
 
   div(Divisor: NLike): N {
     const Dividend: N = this.clone()
+    const divisor: bigint = Dividend.rebase(Divisor).value
     const dividend: bigint = Dividend.value
-    const divisor: bigint = this.rebase(Divisor)
     Dividend.value = this.factor * dividend / divisor
     return Dividend
   }
@@ -244,52 +245,57 @@ export default class N {
   /* Comparisons */
 
   eq(Comparand: NLike): boolean {
-    const compared: bigint = this.value
-    const comparand: bigint = this.rebase(Comparand)
+    const Compared: N = this.clone()
+    const comparand: bigint = Compared.rebase(Comparand).value
+    const compared: bigint = Compared.value
     return compared == comparand
   }
 
   lt(Comparand: NLike): boolean {
-    const compared: bigint = this.value
-    const comparand: bigint = this.rebase(Comparand)
+    const Compared: N = this.clone()
+    const comparand: bigint = Compared.rebase(Comparand).value
+    const compared: bigint = Compared.value
     return compared < comparand
   }
 
   lte(Comparand: NLike): boolean {
-    const compared: bigint = this.value
-    const comparand: bigint = this.rebase(Comparand)
+    const Compared: N = this.clone()
+    const comparand: bigint = Compared.rebase(Comparand).value
+    const compared: bigint = Compared.value
     return compared <= comparand
   }
 
   gt(Comparand: NLike): boolean {
-    const compared: bigint = this.value
-    const comparand: bigint = this.rebase(Comparand)
+    const Compared: N = this.clone()
+    const comparand: bigint = Compared.rebase(Comparand).value
+    const compared: bigint = Compared.value
     return compared > comparand
   }
 
   gte(Comparand: NLike): boolean {
-    const compared: bigint = this.value
-    const comparand: bigint = this.rebase(Comparand)
+    const Compared: N = this.clone()
+    const comparand: bigint = Compared.rebase(Comparand).value
+    const compared: bigint = Compared.value
     return compared >= comparand
   }
 
   /* Helpers */
 
-  /** Brings the other operand to the same precision to allow mathematical interaction. */
-  private rebase(instance: NLike): bigint {
+  /** Bring both operands to the same (higher) precision of both to allow mathematical interaction. */
+  private rebase(instance: NLike): N {
     instance = this.nfy(instance)
 
-    if (instance.precision != this.precision) {
-      /*
-        The other instance's value can potentially lose precision if it has higher factor
-        than this.factor or the DEFAULT_PRECISION, but it shouldn't matter anyway,
-        since we have a fixed precision on *this*,
-        meaning that the result of the arithmetic operation would get truncated anyway.
-      */
-      return this.factor * instance.value / instance.factor
+    if (instance.precision < this.precision) {
+      instance.value *= 10n ** BigInt(this.precision - instance.precision)
+      instance.precision = this.precision
+      instance.factor = this.factor
+    } else if (instance.precision > this.precision) {
+      this.value *= 10n ** BigInt(instance.precision - this.precision)
+      this.precision = instance.precision
+      this.factor = instance.factor
     }
 
-    return instance.value
+    return instance
   }
 
   /** This is an internal shortcut for the constructor. Pronounced N-fy. */
@@ -297,7 +303,7 @@ export default class N {
     if (!(instance instanceof N)) {
       return new N(instance, 0, this.precision)
     }
-    return instance
+    return instance.clone()
   }
 
   /** When rounding, this represents the carried "1" that needs to be added or subtracted. */
