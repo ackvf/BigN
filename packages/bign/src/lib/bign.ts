@@ -52,10 +52,12 @@ export default class N {
   /**
    * The number of decimal places for internal calculations. Changing this value does not affect existing instances as it is used only in constructor.
    *
-   * You can override this value adhoc in situ.
+   * If set to anything less than **original decimals**, they will be used instead.
+   *
+   * Note: you can also override the precision adhoc in situ via constructor parameter.
    * @example
    *
-   * let n = new N(12300, 2, 80) // <- 80 is the precision override
+   * let n = new N(12300, 2, 80) // <- precision is set to 80 in the constructor
    */
   static DEFAULT_PRECISION = 80
 
@@ -79,7 +81,7 @@ export default class N {
   // INTERNALS ---------------------------------------------------------------------------------------------------------
 
   /**
-   * Given float value 123.456 and DEFAULT_PRECISION = 5,
+   * Given a float value 123.456 and DEFAULT_PRECISION = 5,
    * we get 123456 with 3 decimals, which is then internally stored as:
    *
    * decimals = 3
@@ -119,7 +121,7 @@ export default class N {
    * @param options.isPrecise
    * @returns
    */
-  constructor(value: NLike = 0, decimals = 0, precision: number = N.DEFAULT_PRECISION || decimals, options?: { isPrecise?: boolean }) {
+  constructor(value: NLike = 0, decimals = 0, precision: number = N.DEFAULT_PRECISION, options?: { isPrecise?: boolean }) {
 
     if (value instanceof N) {
       return Object.assign(this, value)
@@ -132,12 +134,11 @@ export default class N {
     }
 
     assert(decimals >= 0, "Decimals cannot be negative.")
-    assert(precision >= 0, 'Precision cannot be negative.') // TODO: it actually can https://simple.wikipedia.org/wiki/Precision_(numbers)
 
     this.decimals = decimals
     this.decimalsFactor = 10n ** BigInt(decimals)
 
-    this.precision = precision
+    this.precision = precision = precision < decimals ? decimals : precision
     this.factor = 10n ** BigInt(precision)
 
     if (options?.isPrecise === true) {
@@ -158,7 +159,7 @@ export default class N {
   /** Returns the internal BigInt value using internal precision. */
   toPrecise(): bigint { return this.value }
 
-  /** Returns the value as a bigint with original decimals. */
+  /** Returns the value as a bigint with original decimal precision. */
   toDecimal(): bigint
   /** Returns the value as a bigint to specified precision. */
   toDecimal(precision: number): bigint
@@ -352,6 +353,8 @@ export const jestMatchers = {
     let pass = true
 
     if (actual.value !== expected.value) pass = false
+    if (actual.decimals !== expected.decimals) pass = false
+    if (actual.decimalsFactor !== expected.decimalsFactor) pass = false
     if (actual.precision !== expected.precision) pass = false
     if (actual.factor !== expected.factor) pass = false
 
@@ -367,15 +370,20 @@ export const jestMatchers = {
       }
     }
   },
-  N_toBeAround(actual: bigint | number, expected: bigint | number, precision?: bigint | number) {
+  N_toBeAround(actual: N | bigint | number, expected: N | bigint | number, precision?: bigint | number) {
     let pass = false
 
+    if (actual instanceof N) actual = actual.toDecimal()
+    if (expected instanceof N) expected = expected.toDecimal()
+
     if (typeof actual === 'bigint' && typeof expected === 'bigint' && typeof precision === 'bigint') {
+      precision ??= 0n
       actual = actual / 10n ** precision
       expected = expected / 10n ** precision
       pass = actual - expected === 0n
     }
     else if (typeof actual === 'number' && typeof expected === 'number' && typeof precision === 'number') {
+      precision ??= 0
       actual = actual / 10 ** precision
       expected = expected / 10 ** precision
       pass = actual - expected === 0
@@ -402,17 +410,22 @@ declare global {
       /**
        * Tests that two instances match exactly, that is, their `value`, `precision` and `factor` are exactly the same.
        *
+       * *If you want to use this matcher, you need to import it.*
        * @example
        * import { jestMatchers } from 'BigN'
        * expect.extend(jestMatchers)
        */
       N_toExactlyMatch(b: N): R
       /**
+       * Tests that two values are close to each other with certain precision. `precisionCutOff` controls how many insignificant places are ignored during comparison.
+       * For example `1234567` and `1234500` are considered equal when the `precisionCutOff` is set to `2`.
+       *
+       * *If you want to use this matcher, you need to import it.*
        * @example
        * import { jestMatchers } from 'BigN'
        * expect.extend(jestMatchers)
        */
-      N_toBeAround<T extends bigint | number>(b: T, precisionCutOff?: T): R
+      N_toBeAround<T = bigint | number>(b: T | N, precisionCutOff?: typeof b extends N ? bigint : T): R
     }
   }
 }
