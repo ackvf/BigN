@@ -1,6 +1,8 @@
 {
   "version": 2,
   "projects": {
-    "bign": "packages/bign"
+    "bign": "packages/bign",
+    "bign-benchmarks": "packages/bign-benchmarks",
+    "colors": "packages/colors"
   }
 }

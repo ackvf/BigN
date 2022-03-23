@@ -1,0 +1,52 @@
+{
+  "root": "packages/bign-benchmarks",
+  "sourceRoot": "packages/bign-benchmarks/src",
+  "projectType": "application",
+  "targets": {
+    "build": {
+      "executor": "@nrwl/node:webpack",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/packages/bign-benchmarks",
+        "main": "packages/bign-benchmarks/src/main.ts",
+        "tsConfig": "packages/bign-benchmarks/tsconfig.app.json",
+        "assets": ["packages/bign-benchmarks/src/assets"]
+      },
+      "configurations": {
+        "production": {
+          "optimization": true,
+          "extractLicenses": true,
+          "inspect": false,
+          "fileReplacements": [
+            {
+              "replace": "packages/bign-benchmarks/src/environments/environment.ts",
+              "with": "packages/bign-benchmarks/src/environments/environment.prod.ts"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nrwl/node:node",
+      "options": {
+        "buildTarget": "bign-benchmarks:build"
+      }
+    },
+    "lint": {
+      "executor": "@nrwl/linter:eslint",
+      "outputs": ["{options.outputFile}"],
+      "options": {
+        "lintFilePatterns": ["packages/bign-benchmarks/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nrwl/jest:jest",
+      "outputs": ["coverage/packages/bign-benchmarks"],
+      "options": {
+        "jestConfig": "packages/bign-benchmarks/jest.config.js",
+        "passWithNoTests": true
+      }
+    }
+  },
+  "tags": []
+}

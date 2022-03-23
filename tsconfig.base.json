@@ -15,7 +15,8 @@
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
     "paths": {
-      "@ackvf/bign": ["packages/bign/src/index.ts"]
+      "@ackvf/bign": ["packages/bign/src/index.ts"],
+      "@ackvf/colors": ["packages/colors/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]
