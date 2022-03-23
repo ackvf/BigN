@@ -2,7 +2,11 @@
   "name": "ackvf",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "build:bign": "nx build bign",
+    "lint:bign": "nx lint bign",
+    "test:bign": "nx test bign"
+  },
   "private": true,
   "dependencies": {
     "tslib": "^2.0.0"
