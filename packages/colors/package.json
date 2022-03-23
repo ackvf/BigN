@@ -1,5 +1,8 @@
 {
   "name": "@ackvf/colors",
-  "version": "0.0.1",
-  "type": "commonjs"
+  "version": "1.0.0",
+  "type": "commonjs",
+  "scripts": {
+    "test:watch": "jest --watch --verbose true"
+  }
 }

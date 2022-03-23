@@ -1,7 +1,8 @@
-import { colors } from './colors';
+import { colors } from './colors'
 
 describe('colors', () => {
-  it('should work', () => {
-    expect(colors()).toEqual('colors');
-  });
-});
+  it('uncolorize should revert colored text', () => {
+    const colored = colors.fg.red + 'red' + colors.reset
+    expect(colors.uncolorize(colored)).toEqual('red')
+  })
+})
