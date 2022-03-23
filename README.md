@@ -1,6 +1,10 @@
 
 
-# Ackvf
+# BigN for JS and Solidity
+
+This monorepo includes Arbitrary-precision arithmetics helper for javascript and solidity (todo) and utilities used during development.
+
+# Nx
 
 This project was generated using [Nx](https://nx.dev).
 

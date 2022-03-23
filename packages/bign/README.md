@@ -1,4 +1,8 @@
-# bign
+# BigN
+
+Arbitrary-precision arithmetics class helper for js native BigInt implementation.
+
+# Nx
 
 This library was generated with [Nx](https://nx.dev).
 

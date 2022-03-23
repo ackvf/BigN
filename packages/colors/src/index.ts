@@ -1,4 +1,4 @@
-export * from './lib/colors';
+export * from './lib/colors'
 
 import { colors, extractMessage } from './lib/colors'
 import type { Colorizer } from './lib/colors'

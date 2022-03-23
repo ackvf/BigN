@@ -1,5 +1,5 @@
 {
-  "name": "ackvf",
+  "name": "@ackvf/monorepo",
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
@@ -8,7 +8,6 @@
     "test:bign": "nx test bign",
     "test:colors": "nx test colors"
   },
-  "private": true,
   "dependencies": {
     "tslib": "^2.0.0"
   },
@@ -31,5 +30,20 @@
     "prettier": "^2.5.1",
     "ts-jest": "27.0.5",
     "typescript": "~4.5.2"
-  }
+  },
+  "description": "This monorepo includes Arbitrary-precision arithmetics helper for javascript and solidity (todo) and utilities used during development.",
+  "main": "dist/packages/bign/src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ackvf/BigN.git"
+  },
+  "keywords": [
+    "bigint",
+    "bignumber"
+  ],
+  "author": "Qwerty (Vítězslav Ackermann Ferko) <qwerty@qwerty.xyz>",
+  "bugs": {
+    "url": "https://github.com/ackvf/BigN/issues"
+  },
+  "homepage": "https://github.com/ackvf/BigN#readme"
 }

@@ -11,4 +11,4 @@ describe('colors helpers', () => {
   it('called as tagged template', () => {
     expect(red`red`).toEqual(expected)
   })
-});
+})

@@ -1,1 +1,1 @@
-export * from './lib/bign';
+export * from './lib/bign'

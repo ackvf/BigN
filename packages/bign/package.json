@@ -4,5 +4,21 @@
   "type": "commonjs",
   "scripts": {
     "test:watch": "jest --watch --verbose true"
-  }
+  },
+  "description": "Arbitrary-precision arithmetics class helper for js native BigInt implementation.",
+  "main": "src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ackvf/BigN.git"
+  },
+  "keywords": [
+    "bigint",
+    "bignumber"
+  ],
+  "author": "Qwerty (Vítězslav Ackermann Ferko) <qwerty@qwerty.xyz>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ackvf/BigN/issues"
+  },
+  "homepage": "https://github.com/ackvf/BigN#readme"
 }

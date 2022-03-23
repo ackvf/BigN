@@ -2,6 +2,7 @@
   "extends": ["../../.eslintrc.json"],
   "ignorePatterns": ["!**/*"],
   "rules": {
+    "semi": ["error", "never"],
     "no-control-regex": "off"
   },
   "overrides": [

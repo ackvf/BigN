@@ -4,5 +4,22 @@
   "type": "commonjs",
   "scripts": {
     "test:watch": "jest --watch --verbose true"
-  }
+  },
+  "description": "Colorize console output with these simple helpers.",
+  "main": "src/index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ackvf/BigN.git"
+  },
+  "keywords": [
+    "console",
+    "colors",
+    "colorize"
+  ],
+  "author": "Qwerty (Vítězslav Ackermann Ferko) <qwerty@qwerty.xyz>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ackvf/BigN/issues"
+  },
+  "homepage": "https://github.com/ackvf/BigN#readme"
 }
