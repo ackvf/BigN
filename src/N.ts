@@ -184,39 +184,209 @@ export default class N {
   /* Arithmetics */
 
   plus(Addend: NLike): N {
-    const Augend: N = this.clone()
-    const augend: bigint = Augend.value
+    const augend: bigint = this.value
     const addend: bigint = this.rebase(Addend)
-    Augend.value = augend + addend
-    return Augend
+    this.value = augend + addend
+    return this
   }
 
   minus(Subtrahend: NLike): N {
-    const Minuend: N = this.clone()
-    const minuend: bigint = Minuend.value
+    const minuend: bigint = this.value
     const subtrahend: bigint = this.rebase(Subtrahend)
-    Minuend.value = minuend - subtrahend
-    return Minuend
+    this.value = minuend - subtrahend
+    return this
   }
 
   mul(Factor: NLike): N {
-    const Multiplier: N = this.clone()
-    const multiplier: bigint = Multiplier.value
+    const multiplier: bigint = this.value
     const multiplicand: bigint = this.rebase(Factor)
-    Multiplier.value = multiplier * multiplicand / this.factor
-    return Multiplier
+    this.value = multiplier * multiplicand / this.factor
+    return this
   }
 
   /** Alias for `mul(NLike)`. Used by BigNumber.js. */
   multipliedBy(Factor: NLike): N { return this.mul(Factor) }
 
   div(Divisor: NLike): N {
-    const Dividend: N = this.clone()
-    const dividend: bigint = Dividend.value
+    const dividend: bigint = this.value
     const divisor: bigint = this.rebase(Divisor)
-    Dividend.value = this.factor * dividend / divisor
-    return Dividend
+    this.value = this.factor * dividend / divisor
+    return this
   }
+
+  /** Alias for `div(NLike)`. Used by BigNumber.js. */
+  dividedBy(Divisor: NLike): N { return this.div(Divisor) }
+
+  /** Integer division: returns the integer part of the division. */
+  dividedToIntegerBy(Divisor: NLike): N {
+    const dividend: bigint = this.value
+    const divisor: bigint = this.rebase(Divisor)
+    this.value = dividend / divisor * this.factor
+    return this
+  }
+
+  /** Alias for `mul(NLike)`. Used by BigNumber.js. */
+  times(Factor: NLike): N { return this.mul(Factor) }
+
+  /** Alias for `sqrt()`. Used by BigNumber.js. */
+  squareRoot(): N { return this.sqrt() }
+
+  /** Absolute value. */
+  abs(): N {
+    if (this.value < 0n) {
+      this.value = -this.value
+    }
+    return this
+  }
+
+  /** Alias for `abs()`. Used by BigNumber.js. */
+  absoluteValue(): N { return this.abs() }
+
+  /** Negates the value. */
+  negated(): N {
+    this.value = -this.value
+    return this
+  }
+
+  /** Modulo/remainder. */
+  modulo(Divisor: NLike): N {
+    const divisor: bigint = this.rebase(Divisor)
+    this.value = this.value % divisor
+    return this
+  }
+
+  /** Alias for `modulo(NLike)`. */
+  mod(Divisor: NLike): N { return this.modulo(Divisor) }
+
+  /** Exponentiation by integer exponent. */
+  exponentiatedBy(Exponent: NLike): N {
+    const exponent = BigInt(this.nfy(Exponent).valueOf())
+    if (exponent < 0n) {
+      throw new Error('Negative exponent is not supported.')
+    }
+    let result = 1n * this.factor
+    let base = this.value
+    let exp = exponent
+    while (exp > 0n) {
+      if (exp % 2n === 1n) {
+        result = result * base / this.factor
+      }
+      base = base * base / this.factor
+      exp /= 2n
+    }
+    this.value = result
+    return this
+  }
+
+  /** Shifts the decimal point by the given number of places. */
+  shiftedBy(shift: number): N {
+    if (shift === 0) {
+      return this
+    }
+    const factor = 10n ** BigInt(Math.abs(shift))
+    this.value = shift > 0 ? this.value * factor : this.value / factor
+    return this
+  }
+
+  /** Number of decimal places or a rounded value if dp is specified. */
+  decimalPlaces(): number
+  decimalPlaces(dp: number): N
+  decimalPlaces(dp?: number): number | N {
+    if (dp === undefined) {
+      return this.decimals
+    }
+    return new N(this.toString(dp))
+  }
+
+  /** Returns the integer part of the value. */
+  integerValue(): N {
+    const integer = this.valueOf()
+    this.value = integer * this.factor
+    return this
+  }
+
+  /** Number of significant digits. */
+  precision(includeZeros: boolean = false): number {
+    if (this.value === 0n) {
+      return 1
+    }
+    const raw = this.toString(this.decimals).replace('-', '').replace('.', '')
+    const trimmedLeading = raw.replace(/^0+/, '')
+    const trimmed = includeZeros ? trimmedLeading : trimmedLeading.replace(/0+$/, '')
+    return trimmed.length || 1
+  }
+
+  /** Returns a plain number representation. */
+  toNumber(): number {
+    return Number(this.toString(this.decimals))
+  }
+
+  /** Returns a string with fixed decimal places. */
+  toFixed(dp: number = this.decimals): string {
+    return this.toString(dp)
+  }
+
+  /** Returns a string with an exponent. */
+  toExponential(dp?: number): string {
+    const num = Number(this.toString(this.decimals))
+    return dp === undefined ? num.toExponential() : num.toExponential(dp)
+  }
+
+  /** Returns a string with a specified precision. */
+  toPrecision(precision?: number): string {
+    const num = Number(this.toString(this.decimals))
+    return precision === undefined ? num.toPrecision() : num.toPrecision(precision)
+  }
+
+  /** Returns a formatted string with grouped integer digits. */
+  toFormat(dp: number = this.decimals, groupSeparator: string = ','): string {
+    const [intPart, decPart] = this.toString(dp).split('.')
+    const grouped = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, groupSeparator)
+    return decPart === undefined ? grouped : `${grouped}.${decPart}`
+  }
+
+  /** Returns a fraction as [numerator, denominator]. */
+  toFraction(): [string, string] {
+    let numerator = this.value
+    let denominator = this.factor
+    const gcd = (a: bigint, b: bigint): bigint => {
+      let x = a < 0n ? -a : a
+      let y = b < 0n ? -b : b
+      while (y !== 0n) {
+        const t = y
+        y = x % y
+        x = t
+      }
+      return x
+    }
+    const divisor = gcd(numerator, denominator)
+    numerator /= divisor
+    denominator /= divisor
+    return [numerator.toString(), denominator.toString()]
+  }
+
+  /** Comparisons */
+  comparedTo(Comparand: NLike): number {
+    const comparand: bigint = this.rebase(Comparand)
+    if (this.value === comparand) {
+      return 0
+    }
+    return this.value > comparand ? 1 : -1
+  }
+
+  isEqualTo(Comparand: NLike): boolean { return this.eq(Comparand) }
+  isGreaterThan(Comparand: NLike): boolean { return this.gt(Comparand) }
+  isGreaterThanOrEqualTo(Comparand: NLike): boolean { return this.gte(Comparand) }
+  isLessThan(Comparand: NLike): boolean { return this.lt(Comparand) }
+  isLessThanOrEqualTo(Comparand: NLike): boolean { return this.lte(Comparand) }
+
+  isZero(): boolean { return this.value === 0n }
+  isPositive(): boolean { return this.value > 0n }
+  isNegative(): boolean { return this.value < 0n }
+  isInteger(): boolean { return this.value % this.factor === 0n }
+  isBigNumber(): boolean { return true }
+  isFinite(): boolean { return true }
+  isNaN(): boolean { return false }
 
   sq(): N {
     return this.mul(this)
